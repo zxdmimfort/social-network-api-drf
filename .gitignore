@@ -1,0 +1,5 @@
+.venv/
+testgram/db.sqlite3
+.idea/
+__pycache__/
+/.env
