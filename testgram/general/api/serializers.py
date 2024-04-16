@@ -197,7 +197,7 @@ class ChatSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Chat
-        fields = ("user_1", "user_2")
+        fields = ("id", "user_1", "user_2")
 
     def create(self, validated_data):
         request_user = validated_data["user_1"]
@@ -232,7 +232,7 @@ class ChatListSerializer(serializers.ModelSerializer):
             "last_message_author",
         )
 
-    def get_last_message_content(self, obj) -> str:
+    def get_last_message_content(self, obj) -> str | None:
         return obj.last_message_content
 
     def get_companion_name(self, obj) -> str:
@@ -241,10 +241,13 @@ class ChatListSerializer(serializers.ModelSerializer):
         )
         return f"{companion.first_name} {companion.last_name}"
 
-    def get_last_message_author(self, obj) -> str:
-        if self.context["request"].user == obj.last_message_author:
+    def get_last_message_author(self, obj) -> str | None:
+        if not obj.last_message_author:
+            return None
+        elif self.context["request"].user.pk == obj.last_message_author:
             return "Вы"
-        return self.get_companion_name(obj)
+        else:
+            return self.get_companion_name(obj)
 
 
 class MessageListSerializer(serializers.ModelSerializer):

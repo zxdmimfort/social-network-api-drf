@@ -1,6 +1,6 @@
 from django.db.models import CharField, Case, When, Value, F, OuterRef, Q, Subquery
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import mixins, viewsets
+from rest_framework import mixins, viewsets, status
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -140,6 +140,17 @@ class ChatViewSet(
 ):
     permission_classes = [IsAuthenticated]
 
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        response_data = {
+            **serializer.data,
+            "user_2": serializer.validated_data["user_2"].pk,
+        }
+        return Response(response_data, status=status.HTTP_201_CREATED, headers=headers)
+
     def get_serializer_class(self):
         if self.action == "list":
             return ChatListSerializer
@@ -147,8 +158,23 @@ class ChatViewSet(
             return MessageListSerializer
         return ChatSerializer
 
-    def get_queryset(self):
+    def list(self, request, *args, **kwargs):
+        empty = request.query_params.get("empty")
+        queryset = self.filter_queryset(self.get_queryset(empty))
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
+    def get_queryset(self, empty: bool | None = None):
         user = self.request.user
+        query_param = {}
+        if empty is not None:
+            query_param["messages__isnull"] = empty
 
         last_message_subquery = (
             Message.objects.filter(chat=OuterRef("pk"))
@@ -167,10 +193,7 @@ class ChatViewSet(
         )
 
         qs = (
-            Chat.objects.filter(
-                Q(user_1=user) | Q(user_2=user),
-                messages__isnull=False,
-            )
+            Chat.objects.filter(Q(user_1=user) | Q(user_2=user), **query_param)
             .annotate(
                 last_message_datetime=Subquery(last_message_subquery),
                 last_message_content=Subquery(last_message_content_subquery),
