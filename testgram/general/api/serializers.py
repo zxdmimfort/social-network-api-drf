@@ -194,10 +194,14 @@ class ChatSerializer(serializers.ModelSerializer):
     user_1 = serializers.HiddenField(
         default=serializers.CurrentUserDefault(),
     )
+    user_2 = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.all(), write_only=True
+    )
+    companion_id = serializers.SerializerMethodField()
 
     class Meta:
         model = Chat
-        fields = ("id", "user_1", "user_2")
+        fields = ("id", "user_1", "user_2", "companion_id")
 
     def create(self, validated_data):
         request_user = validated_data["user_1"]
@@ -214,6 +218,12 @@ class ChatSerializer(serializers.ModelSerializer):
             )
 
         return chat
+
+    def get_companion_id(self, obj) -> int:
+        companion = (
+            obj.user_1 if obj.user_2 == self.context["request"].user else obj.user_2
+        )
+        return companion.id
 
 
 class ChatListSerializer(serializers.ModelSerializer):

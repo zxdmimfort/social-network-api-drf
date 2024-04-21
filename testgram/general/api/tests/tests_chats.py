@@ -1,5 +1,3 @@
-import time
-
 from django.utils.timezone import make_naive
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -69,6 +67,24 @@ class ChatTestCase(APITestCase):
         self.assertDictEqual(chat_1_expected, response.data["results"][0])
         self.assertDictEqual(chat_2_expected, response.data["results"][2])
 
+    def test_get_all_chats(self):
+        chats = ChatFactory.create_batch(5, user_1=self.user)
+        msgs = []
+        for chat in chats[1:]:
+            msgs.append(MessageFactory(chat=chat))
+
+        response = self.client.get(path=f"{self.url}?empty=0", format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(msgs), response.data["count"])
+
+        response = self.client.get(path=f"{self.url}", format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(chats), response.data["count"])
+
+        response = self.client.get(path=f"{self.url}?empty=1", format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(chats) - len(msgs), response.data["count"])
+
     def test_create_chat(self):
         user = UserFactory()
         data = {"user_2": user.pk}
@@ -77,7 +93,7 @@ class ChatTestCase(APITestCase):
         chat = Chat.objects.last()
         expected_data = {
             "id": chat.pk,
-            "user_2": chat.user_2.pk,
+            "companion_id": chat.user_2.pk,
         }
         self.assertDictEqual(response.data, expected_data)
         self.assertEqual(chat.user_1, self.user)
@@ -93,7 +109,7 @@ class ChatTestCase(APITestCase):
         self.assertEqual(Chat.objects.count(), 1)
         expected_data = {
             "id": chat.pk,
-            "user_2": chat.user_2.pk,
+            "companion_id": chat.user_2.pk,
         }
         self.assertDictEqual(expected_data, response.data)
 
@@ -106,7 +122,7 @@ class ChatTestCase(APITestCase):
         self.assertEqual(Chat.objects.count(), 1)
         expected_data = {
             "id": chat.pk,
-            "user_2": self.user.pk,
+            "companion_id": self.user.pk,
         }
         self.assertDictEqual(expected_data, response.data)
 
@@ -155,7 +171,9 @@ class ChatTestCase(APITestCase):
             "id": message_3.pk,
             "content": message_3.content,
             "message_author": "Вы",
-            "created_at": make_naive(message_3.created_at).strftime(("%Y-%m-%dT%H:%M:%S")),
+            "created_at": make_naive(message_3.created_at).strftime(
+                ("%Y-%m-%dT%H:%M:%S")
+            ),
         }
         self.assertDictEqual(
             response.data[0],
@@ -166,7 +184,9 @@ class ChatTestCase(APITestCase):
             "id": message_2.pk,
             "content": message_2.content,
             "message_author": user.first_name,
-            "created_at": make_naive(message_2.created_at).strftime(("%Y-%m-%dT%H:%M:%S")),
+            "created_at": make_naive(message_2.created_at).strftime(
+                ("%Y-%m-%dT%H:%M:%S")
+            ),
         }
         self.assertDictEqual(
             response.data[1],
@@ -177,7 +197,9 @@ class ChatTestCase(APITestCase):
             "id": message_1.pk,
             "content": message_1.content,
             "message_author": "Вы",
-            "created_at": make_naive(message_1.created_at).strftime(("%Y-%m-%dT%H:%M:%S")),
+            "created_at": make_naive(message_1.created_at).strftime(
+                ("%Y-%m-%dT%H:%M:%S")
+            ),
         }
         self.assertDictEqual(
             response.data[2],

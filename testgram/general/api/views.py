@@ -42,9 +42,6 @@ class UserViewSet(
             serializer = self.get_serializer(page, many=True)
             return self.get_paginated_response(serializer.data)
 
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)
-
     @action(detail=False, methods=["get"])
     def me(self, request):
         instance = self.request.user
@@ -140,17 +137,6 @@ class ChatViewSet(
 ):
     permission_classes = [IsAuthenticated]
 
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
-        response_data = {
-            **serializer.data,
-            "user_2": serializer.validated_data["user_2"].pk,
-        }
-        return Response(response_data, status=status.HTTP_201_CREATED, headers=headers)
-
     def get_serializer_class(self):
         if self.action == "list":
             return ChatListSerializer
@@ -167,14 +153,11 @@ class ChatViewSet(
             serializer = self.get_serializer(page, many=True)
             return self.get_paginated_response(serializer.data)
 
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)
-
-    def get_queryset(self, empty: bool | None = None):
+    def get_queryset(self, empty: str | None = None):
         user = self.request.user
         query_param = {}
         if empty is not None:
-            query_param["messages__isnull"] = empty
+            query_param["messages__isnull"] = bool(int(empty))
 
         last_message_subquery = (
             Message.objects.filter(chat=OuterRef("pk"))

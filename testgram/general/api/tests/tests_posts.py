@@ -64,6 +64,14 @@ class PostTestCase(APITestCase):
 
         self.assertDictEqual(expected_data, response.data["results"][0])
 
+        post.body = post.body[:125]
+        post.save()
+        expected_data["body"] = post.body
+
+        response = self.client.get(path=self.url, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertDictEqual(expected_data, response.data["results"][0])
+
     def test_post_list_logout(self):
         PostFactory.create_batch(5)
         self.client.logout()
